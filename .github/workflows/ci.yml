@@ -1,0 +1,15 @@
+name: scientific-validation
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GNU Fortran
+        run: sudo apt-get update && sudo apt-get install -y gfortran make
+      - name: Compile and validate
+        run: make test
