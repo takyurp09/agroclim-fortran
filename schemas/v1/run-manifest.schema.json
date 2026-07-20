@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takyurp09/agroclim-fortran/schemas/v1/run-manifest.schema.json",
+  "title": "AgroClim-F run-manifest-v1",
+  "type": "object",
+  "required": ["manifest_schema", "software_version", "result_schema_version", "algorithm", "parameters", "observation_rows", "season_rows"],
+  "properties": {
+    "manifest_schema": {"const": "agroclim-run-manifest-v1"},
+    "software_version": {"type": "string"},
+    "result_schema_version": {"const": "1.0"},
+    "algorithm": {"const": "sinusoidal-degree-days-v1"},
+    "observation_rows": {"type": "integer", "minimum": 0},
+    "season_rows": {"type": "integer", "minimum": 0},
+    "threads": {"type": "integer", "minimum": 1},
+    "parameters": {
+      "type": "object",
+      "required": ["gdd_base_c", "gdd_cap_c", "edd_threshold_c", "hdd_threshold_c", "minimum_coverage"]
+    },
+    "sha256": {
+      "type": "object",
+      "properties": {
+        "observations": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "seasons": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "results": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

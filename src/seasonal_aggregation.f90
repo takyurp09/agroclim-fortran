@@ -1,6 +1,7 @@
 module seasonal_aggregation
   use kinds, only: dp
-  use climate_types, only: weather_record, crop_window, exposure_result
+  use climate_types, only: weather_record, crop_window, exposure_config, exposure_result
+  use calendar_dates, only: days_between
   use degree_days, only: growing_degree_day, exceedance_degree_day, cold_degree_day
   implicit none
   private
@@ -8,56 +9,71 @@ module seasonal_aggregation
 
 contains
 
-  pure logical function belongs_to_season(rec, window, harvest_year)
-    type(weather_record), intent(in) :: rec
-    type(crop_window), intent(in) :: window
-    integer, intent(in) :: harvest_year
-
-    if (window%start_doy <= window%end_doy) then
-      belongs_to_season = rec%year == harvest_year .and. &
-        rec%doy >= window%start_doy .and. rec%doy <= window%end_doy
-    else
-      belongs_to_season = (rec%year == harvest_year - 1 .and. rec%doy >= window%start_doy) .or. &
-                          (rec%year == harvest_year .and. rec%doy <= window%end_doy)
-    end if
-  end function belongs_to_season
-
-  subroutine aggregate_exposures(weather, windows, gdd_base, gdd_cap, edd_threshold, &
-                                 hdd_threshold, results)
+  subroutine aggregate_exposures(weather, windows, config, results)
     type(weather_record), intent(in) :: weather(:)
     type(crop_window), intent(in) :: windows(:)
-    real(dp), intent(in) :: gdd_base, gdd_cap, edd_threshold, hdd_threshold
+    type(exposure_config), intent(in) :: config
     type(exposure_result), allocatable, intent(out) :: results(:)
-    integer :: min_year, max_year, n_years, idx, w, y, i
+    integer, allocatable :: first_observation(:), last_observation(:)
+    integer :: max_key, i, w
 
-    if (size(weather) == 0 .or. size(windows) == 0) then
-      allocate(results(0))
-      return
+    if (size(windows) == 0) then
+      allocate(results(0)); return
     end if
-    min_year = minval(weather%year)
-    max_year = maxval(weather%year)
-    n_years = max_year - min_year + 2
-    allocate(results(size(windows) * n_years))
+    max_key = max(1, maxval(windows%location_key))
+    if (size(weather) > 0) max_key = max(max_key, maxval(weather%location_key))
+    allocate(first_observation(max_key),last_observation(max_key))
+    first_observation=0;last_observation=0
+    do i=1,size(weather)
+      if(first_observation(weather(i)%location_key)==0)first_observation(weather(i)%location_key)=i
+      last_observation(weather(i)%location_key)=i
+    end do
 
-    !$omp parallel do default(shared) private(idx,w,y,i) schedule(static)
-    do idx = 1, size(results)
-      w = (idx - 1) / n_years + 1
-      y = min_year + modulo(idx - 1, n_years)
-      results(idx)%year = y
-      results(idx)%season = windows(w)%season
-      do i = 1, size(weather)
-        if (trim(weather(i)%location_id) /= trim(windows(w)%location_id)) cycle
-        if (.not. belongs_to_season(weather(i), windows(w), y)) cycle
-        results(idx)%location_name = weather(i)%location_name
-        results(idx)%gdd = results(idx)%gdd + growing_degree_day( &
-          weather(i)%tmin_c, weather(i)%tmax_c, gdd_base, gdd_cap)
-        results(idx)%edd = results(idx)%edd + exceedance_degree_day( &
-          weather(i)%tmin_c, weather(i)%tmax_c, edd_threshold)
-        results(idx)%hdd = results(idx)%hdd + cold_degree_day( &
-          weather(i)%tmin_c, weather(i)%tmax_c, hdd_threshold)
-        results(idx)%precip_mm = results(idx)%precip_mm + weather(i)%precip_mm
-        results(idx)%valid_days = results(idx)%valid_days + 1
-      end do
+    allocate(results(size(windows)))
+    do w = 1, size(windows)
+      results(w)%location_key = windows(w)%location_key
+      results(w)%location_id = windows(w)%location_id
+      results(w)%season_id = windows(w)%season_id
+      results(w)%season_name = windows(w)%season_name
+      results(w)%season_year = windows(w)%season_year
+      results(w)%start_date = windows(w)%start_date
+      results(w)%end_date = windows(w)%end_date
+      results(w)%expected_days = days_between(windows(w)%start_ordinal, windows(w)%end_ordinal)
+    end do
+
+    ! Independent season intervals are parallelized without reductions or races.
+    !$omp parallel do default(shared) private(w,i) schedule(dynamic)
+    do w = 1, size(windows)
+      if(first_observation(windows(w)%location_key)>0)then
+        do i=first_observation(windows(w)%location_key),last_observation(windows(w)%location_key)
+          if (weather(i)%ordinal_date >= windows(w)%start_ordinal .and. &
+              weather(i)%ordinal_date <= windows(w)%end_ordinal) then
+          results(w)%location_name = weather(i)%location_name
+          results(w)%gdd = results(w)%gdd + growing_degree_day( &
+            weather(i)%tmin_c, weather(i)%tmax_c, config%gdd_base_c, config%gdd_cap_c)
+          results(w)%edd = results(w)%edd + exceedance_degree_day( &
+            weather(i)%tmin_c, weather(i)%tmax_c, config%edd_threshold_c)
+          results(w)%hdd = results(w)%hdd + cold_degree_day( &
+            weather(i)%tmin_c, weather(i)%tmax_c, config%hdd_threshold_c)
+          results(w)%precip_mm = results(w)%precip_mm + weather(i)%precip_mm
+            results(w)%observed_days = results(w)%observed_days + 1
+          end if
+        end do
+      end if
+    end do
+    !$omp end parallel do
+
+    !$omp parallel do default(shared) private(i) schedule(static)
+    do i = 1, size(results)
+      if (results(i)%expected_days > 0) &
+        results(i)%coverage_fraction = real(results(i)%observed_days, dp) / real(results(i)%expected_days, dp)
+      if (results(i)%observed_days == 0) then
+        results(i)%qc_status = "NO_DATA"
+      else if (results(i)%coverage_fraction >= config%minimum_coverage) then
+        results(i)%qc_status = "PASS"
+      else
+        results(i)%qc_status = "INCOMPLETE"
+      end if
     end do
     !$omp end parallel do
   end subroutine aggregate_exposures
