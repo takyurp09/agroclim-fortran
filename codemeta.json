@@ -1,0 +1,14 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "AgroClim-F",
+  "codeRepository": "https://github.com/takyurp09/agroclim-fortran",
+  "version": "1.0.0",
+  "license": "https://spdx.org/licenses/MIT",
+  "programmingLanguage": ["Fortran", "Python"],
+  "applicationCategory": "Scientific research software",
+  "description": "Validated crop-season climate exposure calculations in modern Fortran",
+  "author": [{"@type": "Person", "givenName": "Muhammad Taky", "familyName": "Tahmid", "affiliation": "University of Delaware"}],
+  "developmentStatus": "active",
+  "keywords": ["degree days", "agricultural climate", "crop calendars", "OpenMP"]
+}

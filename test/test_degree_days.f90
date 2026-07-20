@@ -1,4 +1,5 @@
 program test_degree_days
+  use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
   use kinds, only: dp
   use degree_days, only: exceedance_degree_day, growing_degree_day, cold_degree_day
   implicit none
@@ -15,6 +16,8 @@ program test_degree_days
     growing_degree_day(-5.0_dp, 45.0_dp, 8.0_dp, 30.0_dp) <= 22.0_dp)
   call assert_true("EDD monotonicity", exceedance_degree_day(5.0_dp, 35.0_dp, 25.0_dp) >= &
     exceedance_degree_day(5.0_dp, 35.0_dp, 30.0_dp))
+  call assert_true("invalid temperatures return NaN", ieee_is_nan(exceedance_degree_day(20.0_dp,10.0_dp,15.0_dp)))
+  call assert_true("invalid GDD bounds return NaN", ieee_is_nan(growing_degree_day(10.0_dp,20.0_dp,30.0_dp,8.0_dp)))
 
   if (failures > 0) then
     print '(I0,A)', failures, " test(s) failed."

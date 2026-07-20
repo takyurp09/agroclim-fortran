@@ -8,8 +8,10 @@
 set -euo pipefail
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 
-./build/agroclim compute \
-  --daily examples/daily_weather.csv \
-  --windows examples/crop_windows.csv \
-  --output results/exposure-slurm.csv \
+python3 python/run_with_provenance.py \
+  --executable build/agroclim \
+  --observations examples/nasa-power/data/processed/observations.tsv \
+  --seasons examples/nasa-power/seasons.tsv \
+  --output results/exposure-slurm.tsv \
+  --manifest results/manifest-slurm.json \
   --threads "${OMP_NUM_THREADS}"

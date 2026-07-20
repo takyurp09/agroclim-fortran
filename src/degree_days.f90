@@ -1,4 +1,5 @@
 module degree_days
+  use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
   use kinds, only: dp
   implicit none
   private
@@ -12,7 +13,7 @@ contains
     real(dp) :: mean_temp, half_range, ratio, theta
 
     if (tmin > tmax) then
-      value = -huge(1.0_dp)
+      value = ieee_value(tmin, ieee_quiet_nan)
       return
     end if
 
@@ -38,7 +39,7 @@ contains
     real(dp) :: value
 
     if (cap <= base .or. tmin > tmax) then
-      value = -huge(1.0_dp)
+      value = ieee_value(tmin, ieee_quiet_nan)
       return
     end if
 
@@ -52,7 +53,7 @@ contains
     real(dp) :: value, mean_temp
 
     if (tmin > tmax) then
-      value = -huge(1.0_dp)
+      value = ieee_value(tmin, ieee_quiet_nan)
       return
     end if
 

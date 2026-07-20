@@ -1,9 +1,16 @@
-# Limitations
+# Limitations and non-goals
 
-- Daily temperature is represented by a sinusoid defined only by Tmin and Tmax.
-- CSV is used for transparent demonstration, not maximum I/O performance.
-- The MVP computes one GDD base/cap and one EDD/HDD threshold per run.
-- Spatial preprocessing and crop-calendar construction occur outside Fortran.
-- Missing days are counted but not imputed.
-- The included Slurm file is a deployment template. Cluster experience should
-  only be claimed after a real cluster run is documented.
+- A sinusoid based on daily Tmin/Tmax is an approximation of sub-daily
+  temperature, not a reconstruction of observed hourly conditions.
+- Thresholds are user-supplied computational parameters. AgroClim-F does not
+  claim that defaults are biologically calibrated for a crop or location.
+- The software calculates exposure; it does not predict phenology, crop growth,
+  yield, soil carbon, water balance, or nutrient cycling.
+- Spatial extraction, regridding, harvested-area weighting, and crop-calendar
+  estimation belong upstream of the v1 library.
+- TSV prioritizes transparent archival interchange. Large gridded NetCDF/Zarr
+  ingestion and MPI are post-v1 work.
+- Parallel speed depends on the number and size of explicit seasons. The code
+  does not claim universal speedup.
+- NASA POWER point data in the example are a reproducibility case, not a
+  validation of local station climate or crop response.

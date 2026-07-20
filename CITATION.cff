@@ -1,10 +1,24 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
-title: "AgroClim Fortran"
+message: "Please cite the archived release of AgroClim-F used in your analysis."
+title: "AgroClim-F: Validated crop-season climate exposure calculations in modern Fortran"
 type: software
 authors:
   - family-names: Tahmid
     given-names: Muhammad Taky
-version: 0.1.0
+    affiliation: University of Delaware
+version: 1.0.0
 date-released: 2026-07-20
 license: MIT
+repository-code: "https://github.com/takyurp09/agroclim-fortran"
+url: "https://github.com/takyurp09/agroclim-fortran"
+abstract: >-
+  AgroClim-F is a modern Fortran library and command-line application for
+  computing validated thermal and precipitation exposure measures over explicit
+  crop-season intervals, with calendar-aware quality control and provenance.
+keywords:
+  - agricultural climate
+  - degree days
+  - crop calendars
+  - Fortran
+  - OpenMP
+  - reproducible research

@@ -1,0 +1,42 @@
+name = "agroclim-fortran"
+version = "1.0.0"
+license = "MIT"
+author = "Muhammad Taky Tahmid"
+maintainer = "Muhammad Taky Tahmid <takyurp09@gmail.com>"
+copyright = "Copyright 2026 Muhammad Taky Tahmid"
+description = "Validated crop-season climate exposure calculations in modern Fortran"
+categories = ["scientific", "climate", "agriculture"]
+keywords = ["degree-days", "crop-calendar", "OpenMP", "climate-exposure"]
+homepage = "https://github.com/takyurp09/agroclim-fortran"
+
+[build]
+auto-executables = false
+auto-tests = false
+auto-examples = false
+link = "gomp"
+
+[install]
+library = true
+
+[fortran]
+implicit-typing = false
+implicit-external = false
+source-form = "free"
+
+[library]
+source-dir = "src"
+
+[[executable]]
+name = "agroclim"
+source-dir = "app"
+main = "agroclim_cli.f90"
+
+[[test]]
+name = "degree-days"
+source-dir = "test"
+main = "test_degree_days.f90"
+
+[[test]]
+name = "calendar-dates"
+source-dir = "test"
+main = "test_calendar_dates.f90"

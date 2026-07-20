@@ -5,11 +5,68 @@ on:
   pull_request:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  make-and-cmake:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install GNU Fortran
-        run: sudo apt-get update && sudo apt-get install -y gfortran make
-      - name: Compile and validate
+      - uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: latest
+      - name: Make build and scientific validation
         run: make test
+      - name: CMake build, test, and install
+        run: |
+          cmake -S . -B cmake-build -DCMAKE_BUILD_TYPE=Release
+          cmake --build cmake-build --parallel 2
+          ctest --test-dir cmake-build --output-on-failure
+          cmake --install cmake-build --prefix "${{ runner.temp }}/agroclim-install"
+
+  fpm:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: latest
+      - name: Install pinned fpm 0.13.0
+        run: |
+          curl -L --fail --retry 3 -o /tmp/fpm https://github.com/fortran-lang/fpm/releases/download/v0.13.0/fpm-0.13.0-linux-x86_64-gcc-12
+          curl -L --fail --retry 3 -o /tmp/fpm.sha256 https://github.com/fortran-lang/fpm/releases/download/v0.13.0/fpm-0.13.0-linux-x86_64-gcc-12.sha256
+          cd /tmp
+          sed -i 's/fpm-0.13.0-linux-x86_64-gcc-12/fpm/' fpm.sha256
+          sha256sum --check fpm.sha256
+          chmod +x /tmp/fpm
+          echo /tmp >> "$GITHUB_PATH"
+      - name: Build and test package
+        run: |
+          fpm build --profile release
+          fpm test --profile debug
+
+  case-study:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+          version: latest
+      - name: Rebuild committed NASA POWER case
+        run: |
+          make release
+          python3 examples/nasa-power/transform.py
+          git diff --exit-code -- examples/nasa-power/data/processed/observations.tsv
+          mkdir -p case-output
+          python3 python/run_with_provenance.py --executable build/agroclim \
+            --observations examples/nasa-power/data/processed/observations.tsv \
+            --seasons examples/nasa-power/seasons.tsv --output case-output/results.tsv \
+            --manifest case-output/manifest.json --threads 4
+          PYTHONPATH=. python3 python/validate_parity.py \
+            --observations examples/nasa-power/data/processed/observations.tsv \
+            --seasons examples/nasa-power/seasons.tsv --fortran-output case-output/results.tsv
+          python3 python/compare_results.py examples/nasa-power/expected/results.tsv case-output/results.tsv

@@ -1,92 +1,129 @@
-# AgroClim Fortran
+# AgroClim-F
 
-A modern Fortran/OpenMP engine for calculating crop-relevant temperature
-exposure across location-specific growing seasons.
+[![Scientific validation](https://github.com/takyurp09/agroclim-fortran/actions/workflows/ci.yml/badge.svg)](https://github.com/takyurp09/agroclim-fortran/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Fortran 2018](https://img.shields.io/badge/Fortran-2018-734f96.svg)](https://fortran-lang.org/)
 
-The project turns daily minimum temperature, maximum temperature, and
-precipitation into seasonal growing degree days (GDD), extreme degree days
-(EDD), cold degree days (HDD), and precipitation totals. It handles seasons
-that cross calendar years and produces deterministic results with one or
-multiple CPU threads.
+**Validated crop-season climate exposure calculations in modern Fortran.**
 
-## What this demonstrates
+AgroClim-F converts daily minimum temperature, maximum temperature, and
+precipitation into auditable crop-season exposure measures. It provides a
+reusable Fortran library and command-line application with exact Gregorian
+calendar semantics, explicit data-quality rules, deterministic OpenMP
+parallelism, versioned tabular schemas, and a SHA-256 run manifest.
 
-- Modern Fortran 2018 modules and pure elemental numerical functions
-- Scientific formula validation against an independent quadrature oracle
-- OpenMP parallel processing with deterministic seasonal outputs
-- Linux-compatible command-line software and automated CI
-- A Python-to-Fortran workflow for agricultural climate data
+The software is designed for climate–agriculture and climate-econometric
+pipelines. It is not a crop-growth, phenology, or yield-prediction model.
 
-## Quick start
+## Why it exists
+
+Crop-climate studies repeatedly construct growing degree days (GDD), extreme
+degree days (EDD), cold degree days (HDD), and precipitation totals over
+location-specific seasons. Small differences in threshold formulas, leap-year
+handling, missing observations, or season labeling can silently alter research
+panels. AgroClim-F makes those choices explicit and machine-verifiable.
+
+## Scientific guarantees
+
+- Closed-form sinusoidal degree-day integrals in IEEE double precision
+- Capped GDD computed by the stable identity `EDD(base) - EDD(cap)`
+- Independent high-resolution quadrature verification
+- Explicit ISO start and end dates with inclusive Gregorian intervals
+- Duplicate, invalid-date, non-finite, negative-precipitation, and identity checks
+- Observed days, expected days, coverage fraction, and QC status in every result
+- Byte-identical output across tested OpenMP thread counts
+- Input and output SHA-256 hashes in the provenance manifest
+
+## Five-minute run
 
 Requirements: GNU Fortran, GNU Make, and Python 3.
 
 ```bash
+git clone https://github.com/takyurp09/agroclim-fortran.git
+cd agroclim-fortran
 make test
 ```
 
-This compiles the Fortran tests, checks the analytic equations against
-numerical integration, runs the example with OpenMP, and confirms complete
-Python–Fortran output parity.
-
-Run the example directly:
+Run the compact example:
 
 ```bash
 make example
+column -t -s $'\t' results/exposures.tsv
 ```
 
-Or choose parameters:
+The production-style command is:
 
 ```bash
-build/agroclim compute \
-  --daily examples/daily_weather.csv \
-  --windows examples/crop_windows.csv \
-  --output results/exposure.csv \
-  --gdd-base 8 \
-  --gdd-cap 30 \
-  --edd-threshold 30 \
-  --hdd-threshold 10 \
+python3 python/run_with_provenance.py \
+  --executable build/agroclim \
+  --observations observations.tsv \
+  --seasons seasons.tsv \
+  --output exposures.tsv \
+  --manifest run-manifest.json \
   --threads 4
 ```
 
-## Scientific design
+See [CLI reference](docs/cli.md) and [data contracts](docs/data-contract.md).
 
-The engine integrates a sinusoidal approximation of within-day temperature.
-Capped GDD is evaluated with the robust identity
-`GDD(base, cap) = EDD(base) - EDD(cap)`. See
-[`docs/numerical_method.md`](docs/numerical_method.md) for the equations and
-validation design.
+## Reproducible NASA POWER case study
 
-Python prepares flat daily weather records after any ERA5/CMIP6 and geospatial
-processing. Fortran performs the repeated numerical calculations and
-crop-calendar aggregation. See [`docs/data_contract.md`](docs/data_contract.md).
+The committed offline case contains 2,193 daily observations for Dhaka,
+Khulna, and Rajshahi during 2019–2020 and nine illustrative seasons. It includes
+the 2020 leap day and overlapping/cross-year intervals. Raw NASA POWER JSON,
+SHA-256 checksums, transformation code, expected results, and an independent
+Python calculation are included under [`examples/nasa-power`](examples/nasa-power/README.md).
 
-## Benchmarks
+All nine seasons have complete temporal coverage in the snapshot. Fortran and
+the independent Python reference agree within `1e-10 °C day`.
 
-Compile and run the kernel benchmark:
+## Installation
+
+GNU Make:
 
 ```bash
-make benchmark
+make release
 ```
 
-The benchmark reports measured throughput for 100,000, 1 million, and
-10 million synthetic daily observations with 1, 2, 4, and 8 OpenMP threads.
-Performance depends on hardware; the repository does not claim a speedup until
-measurements have been recorded. See the
-[`preliminary local results`](docs/performance.md).
+Fortran Package Manager:
 
-## Scope
+```bash
+fpm build --profile release
+fpm test
+```
 
-AgroClim Fortran is a high-performance climate-exposure engine, not a
-process-based crop or ecosystem model. NetCDF, raster, and polygon operations
-remain in Python, where mature scientific libraries already handle them well.
-See [`docs/limitations.md`](docs/limitations.md) and
-[`docs/provenance.md`](docs/provenance.md).
+CMake:
 
-## Author
+```bash
+cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release
+cmake --build build-cmake
+ctest --test-dir build-cmake --output-on-failure
+cmake --install build-cmake --prefix /desired/prefix
+```
 
-Muhammad Taky Tahmid, University of Delaware
+## Documentation
+
+- [Scientific methods](docs/methods.md)
+- [Data-quality policy](docs/data-quality.md)
+- [Data contracts](docs/data-contract.md)
+- [Library API](docs/api.md)
+- [CLI reference](docs/cli.md)
+- [Reproducibility](docs/reproducibility.md)
+- [Limitations](docs/limitations.md)
+- [Development and AI-assistance disclosure](docs/development-disclosure.md)
+
+## Citation
+
+Use GitHub's **Cite this repository** control, which reads [`CITATION.cff`](CITATION.cff).
+For formal research use, cite a tagged, archived release rather than the moving
+`main` branch. A Zenodo DOI will be added after the v1.0 release archive is
+enabled by the repository owner.
+
+## Contributing and support
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SUPPORT.md](SUPPORT.md), and
+[SECURITY.md](SECURITY.md). Development follows semantic versioning and the
+changes are recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-MIT
+MIT © 2026 Muhammad Taky Tahmid.
